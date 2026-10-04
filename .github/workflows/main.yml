@@ -1,4 +1,4 @@
-name: Build Android Security Monitor APK
+name: Build Phone Security Monitor APK
 
 on:
   workflow_dispatch:
@@ -6,78 +6,44 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Check Flutter
-        run: |
-          flutter --version
-
-      - name: Get dependencies
-        run: |
-          flutter pub get
-
-      # IMPORTANT:
-      # Do NOT use ./gradlew here.
-      # Install and use Gradle 8.14 directly.
-      - name: Set up Gradle 8.14
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14'
+          gradle-version: '8.11.1'
 
-      - name: Verify Gradle
+      - name: Check project
+        working-directory: AndroidSecurityMonitor
         run: |
-          which gradle
-          gradle --version
+          echo "Project files:"
+          ls -la
+          echo "App files:"
+          ls -la app
 
-      - name: Build release APK
-        working-directory: android
-        run: |
-          gradle app:assembleRelease --stacktrace
-
-      - name: Find APK
-        run: |
-          echo "Searching for APK..."
-          find android/app/build/outputs -type f -name "*.apk" -print
-
-      - name: Prepare APK
-        run: |
-          mkdir -p release-apk
-
-          APK=$(find android/app/build/outputs -type f -name "*.apk" | head -n 1)
-
-          if [ -z "$APK" ]; then
-            echo "ERROR: No APK was generated."
-            echo "Build files:"
-            find android/app/build -maxdepth 8 -type f | head -200
-            exit 1
-          fi
-
-          echo "Found APK:"
-          echo "$APK"
-
-          cp "$APK" release-apk/asm-release.apk
+      - name: Build APK
+        working-directory: AndroidSecurityMonitor
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: asm-release-apk
-          path: release-apk/asm-release.apk
+          name: phone-security-monitor-debug-apk
+          path: AndroidSecurityMonitor/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
