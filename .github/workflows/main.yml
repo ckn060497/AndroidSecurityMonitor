@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,27 +23,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.11.1'
-
-      - name: Check project
-        working-directory: AndroidSecurityMonitor
-        run: |
-          echo "Project files:"
-          ls -la
-          echo "App files:"
-          ls -la app
+      - name: Make Gradle executable
+        run: chmod +x gradlew
 
       - name: Build APK
-        working-directory: AndroidSecurityMonitor
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: phone-security-monitor-debug-apk
-          path: AndroidSecurityMonitor/app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-          retention-days: 14
