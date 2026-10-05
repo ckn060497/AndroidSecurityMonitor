@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+
+  build:
+    commands:
+      - cd backend
+      - mvn clean package -DskipTests
+      - cd ..
+
+  post_build:
+    commands:
+      - mkdir -p deploy
+      - cp backend/target/phone-security-api-1.0.0.jar deploy/
+      - echo "web: java -jar phone-security-api-1.0.0.jar" > deploy/Procfile
+
+artifacts:
+  base-directory: deploy
+  files:
+    - '**/*'
