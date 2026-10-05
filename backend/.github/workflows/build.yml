@@ -1,5 +1,4 @@
-
-name: Build Spring Security API
+name: Build Spring Boot API
 
 on:
   workflow_dispatch:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 17
@@ -25,24 +24,35 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Show Java version
+      - name: Check project
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Project files:"
+          ls -la
+          echo "POM:"
+          test -f pom.xml && echo "pom.xml FOUND" || echo "ERROR: pom.xml NOT FOUND"
+
+      - name: Java version
         run: java -version
 
-      - name: Show Maven version
+      - name: Maven version
         run: mvn -version
 
-      - name: Build Spring Boot JAR
+      - name: Build JAR
         run: mvn -B clean package -DskipTests
 
-      - name: Verify JAR
+      - name: Check JAR
         run: |
-          ls -lh target/
-          test -f target/phone-security-api-1.0.0.jar
+          echo "Target directory:"
+          ls -lah target/
+          echo "JAR files:"
+          find target -maxdepth 1 -type f -name "*.jar" -print
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: phone-security-api-jar
-          path: target/phone-security-api-1.0.0.jar
+          path: target/*.jar
           if-no-files-found: error
           retention-days: 14
