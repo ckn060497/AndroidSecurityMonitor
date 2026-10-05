@@ -5,17 +5,22 @@ phases:
     runtime-versions:
       java: corretto17
 
+  pre_build:
+    commands:
+      - java -version
+      - mvn -version
+
   build:
     commands:
       - cd backend
       - mvn clean package -DskipTests
-      - cd ..
 
   post_build:
     commands:
+      - cd ..
       - mkdir -p deploy
-      - cp backend/target/phone-security-api-1.0.0.jar deploy/
-      - echo "web: java -jar phone-security-api-1.0.0.jar" > deploy/Procfile
+      - cp backend/target/phone-security-api-1.0.0.jar deploy/application.jar
+      - echo "web: java -jar application.jar" > deploy/Procfile
 
 artifacts:
   base-directory: deploy
