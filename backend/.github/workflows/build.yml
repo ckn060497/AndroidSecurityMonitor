@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
 
     defaults:
-        run:
-            working-directory: backend
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
@@ -28,14 +28,17 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Check project
+      - name: Check backend project
         run: |
           echo "Current directory:"
           pwd
-          echo "Project files:"
+
+          echo "Backend files:"
           ls -la
-          echo "POM:"
-          test -f pom.xml && echo "pom.xml FOUND" || echo "ERROR: pom.xml NOT FOUND"
+
+          echo "Checking pom.xml:"
+          test -f pom.xml
+          echo "pom.xml FOUND"
 
       - name: Java version
         run: java -version
@@ -43,20 +46,24 @@ jobs:
       - name: Maven version
         run: mvn -version
 
-      - name: Build JAR
+      - name: Build Spring Boot JAR
         run: mvn -B clean package -DskipTests
 
-      - name: Check JAR
+      - name: Verify JAR
         run: |
           echo "Target directory:"
           ls -lah target/
-          echo "JAR files:"
-          find target -maxdepth 1 -type f -name "*.jar" -print
+
+          echo "Checking generated JAR:"
+          test -f target/phone-security-api-1.0.0.jar
+
+          echo "JAR FOUND:"
+          ls -lh target/phone-security-api-1.0.0.jar
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: phone-security-api-jar
-          path: target/*.jar
+          path: backend/target/phone-security-api-1.0.0.jar
           if-no-files-found: error
           retention-days: 14
