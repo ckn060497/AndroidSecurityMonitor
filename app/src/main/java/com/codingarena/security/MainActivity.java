@@ -16,6 +16,8 @@ import org.json.*;
 import java.util.*;
 import java.io.*;
 import java.net.*;
+import android.widget.Toast;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     WebView web;
