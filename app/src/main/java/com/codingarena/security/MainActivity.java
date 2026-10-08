@@ -43,7 +43,73 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
        // api=new ApiClient("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com");
         registerDevice();
+    } 
+
+    private void sendScanToServer(JSONObject report) {
+    if (deviceId <= 0) {
+        Toast.makeText(
+                MainActivity.this,
+                "Device is not registered yet",
+                Toast.LENGTH_SHORT
+        ).show();
+        return;
     }
+
+    new Thread(() -> {
+        try {
+            JSONObject data = new JSONObject();
+            data.put("riskScore", 0);
+            data.put("riskLevel", "SAFE");
+            data.put("reportJson", report.toString());
+
+            URL url = new URL(
+                    "http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/devices/"
+                            + deviceId + "/scan"
+            );
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(data.toString().getBytes("UTF-8"));
+            }
+
+            int code = conn.getResponseCode();
+
+            runOnUiThread(() -> {
+                if (code >= 200 && code < 300) {
+                    Toast.makeText(
+                            MainActivity.this,
+                            "Scan uploaded to AWS",
+                            Toast.LENGTH_SHORT
+                    ).show();
+                } else {
+                    Toast.makeText(
+                            MainActivity.this,
+                            "Scan upload failed: HTTP " + code,
+                            Toast.LENGTH_LONG
+                    ).show();
+                }
+            });
+
+            conn.disconnect();
+
+        } catch (Exception e) {
+            runOnUiThread(() ->
+                    Toast.makeText(
+                            MainActivity.this,
+                            "Scan upload error: " + e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show()
+            );
+        }
+    }).start();
+}
  private void registerDevice() {
     new Thread(() -> {
         try {
