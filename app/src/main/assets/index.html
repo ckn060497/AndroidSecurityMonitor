@@ -1,1 +1,1061 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phone Security Monitor</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"><style>body{background:#f5f7f6;color:#18221c}.hero{background:linear-gradient(135deg,#10b981,#22c55e,#84cc16);color:#fff}.card{border:0;border-radius:18px;box-shadow:0 6px 24px #0001}.dot{width:10px;height:10px;border-radius:50%;display:inline-block}.safe{background:#16a34a}.warn{background:#f59e0b}.danger{background:#dc2626}.mono{font-family:monospace;white-space:pre-wrap}.sticky-actions{position:sticky;bottom:12px;z-index:5}.app-row{border:1px solid #e5e7eb;border-radius:14px;padding:12px;margin-bottom:8px;background:#fff}</style></head><body><nav class="navbar bg-dark navbar-dark"><div class="container"><span class="navbar-brand fw-bold">Phone Security Monitor</span><span id="connection" class="small">Android: not connected</span></div></nav><header class="hero py-4"><div class="container"><h1 class="fw-bold">Remote Access & Malware Check</h1><p class="mb-0">Review security signals reported by your Android companion.</p></div></header><main class="container py-4"><div class="alert alert-warning"><b>Safety:</b> A suspicious signal is not proof of malware. Verify the app, its source and why it has sensitive access before uninstalling it.</div><div class="row g-3"><div class="col-md-4"><div class="card p-3 h-100"><h5>Remote access</h5><div id="remote"></div></div></div><div class="col-md-4"><div class="card p-3 h-100"><h5>Powerful access</h5><div id="powerful"></div></div></div><div class="col-md-4"><div class="card p-3 h-100"><h5>Device status</h5><div id="device"></div></div></div></div><div class="card p-3 mt-3 sticky-actions"><div class="d-flex justify-content-between align-items-center"><h5 class="mb-2">Security actions</h5><button class="btn btn-outline-dark btn-sm" onclick="refresh()">Refresh</button></div><div class="row g-2"><div class="col-6 col-lg-3"><button class="btn btn-success w-100" onclick="android('accessibility')">Accessibility</button></div><div class="col-6 col-lg-3"><button class="btn btn-success w-100" onclick="android('admin')">Device admins</button></div><div class="col-6 col-lg-3"><button class="btn btn-success w-100" onclick="android('overlay')">Overlay access</button></div><div class="col-6 col-lg-3"><button class="btn btn-success w-100" onclick="android('playprotect')">Play Protect</button></div></div><div class="row g-2 mt-1"><div class="col-6"><button class="btn btn-outline-danger w-100" onclick="uninstallSelected()">Uninstall selected</button></div><div class="col-6"><button class="btn btn-outline-secondary w-100" onclick="android('updates')">Security updates</button></div></div></div><div class="card p-3 mt-3"><h5>Reported apps</h5><div id="apps"></div></div><div class="card p-3 mt-3"><h5>Backend sync</h5><div class="input-group"><input id="api" class="form-control" placeholder="https://your-domain/api/security/report"><button class="btn btn-dark" onclick="saveApi()">Save</button></div><div class="small text-muted mt-2">Use HTTPS and authentication in production.</div></div><div class="card p-3 mt-3"><h5>Last report</h5><pre id="raw" class="mono small mb-0">No Android report yet.</pre></div></main><script>let report=null,selected=null;const $=id=>document.getElementById(id);function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}function b(cls,t){return `<div class="mb-2"><span class="dot ${cls} me-2"></span>${esc(t)}</div>`}function refresh(){try{report=JSON.parse(localStorage.getItem('phoneSecurityReport')||'null')}catch(e){report=null} $('connection').textContent=report?'Android: report received':'Android: not connected';if(!report){$('remote').innerHTML=b('safe','No report yet');$('powerful').innerHTML=b('safe','No report yet');$('device').innerHTML=b('safe','No report yet');$('apps').innerHTML='<span class="text-muted">Open this page inside the Android companion or send a signed report from your app.</span>';return}const ra=report.remoteAccess||[],pa=report.powerfulAccess||[];$('remote').innerHTML=ra.length?ra.map(x=>b('warn',`${x.label} (${x.package})`)).join(''):b('safe','No known remote-control candidate');$('powerful').innerHTML=pa.length?pa.map(x=>b('warn',`${x.type}: ${x.label||x.package}`)).join(''):b('safe','No enabled high-risk access reported');$('device').innerHTML=b(report.vpn?'warn':'safe','VPN active: '+(report.vpn?'yes':'no'))+b('safe','Play Protect: use the Android Play Protect screen for the authoritative scan');$('apps').innerHTML=(report.apps||[]).map(x=>`<div class="app-row"><div class="d-flex justify-content-between gap-2"><div><b>${esc(x.label)}</b><div class="small text-muted">${esc(x.package)}</div></div>${x.remote?'<span class="badge text-bg-warning">remote candidate</span>':''}</div><button class="btn btn-sm btn-outline-danger mt-2" onclick="selectForUninstall('${esc(x.package)}')">Select for uninstall</button></div>`).join('');$('raw').textContent=JSON.stringify(report,null,2)}function selectForUninstall(p){selected=p;alert('Selected '+p+'. Android will show the normal uninstall confirmation.');}function uninstallSelected(){if(!selected){alert('Select an app first.');return}if(window.AndroidSecurity){window.AndroidSecurity.uninstall(selected)}else alert('Open this page inside the Android companion to uninstall.')}function android(a){if(window.AndroidSecurity){window.AndroidSecurity.open(a);return}alert('This action requires the Android companion.')}function saveApi(){localStorage.setItem('securityApi', $('api').value.trim());alert('API URL saved locally. Implement authenticated POST in your backend before production.')}window.setSecurityReport=function(j){localStorage.setItem('phoneSecurityReport',JSON.stringify(j));refresh()};$('api').value=localStorage.getItem('securityApi')||'';refresh();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Android Security Monitor</title>
+
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+    margin:0;
+    padding:0 0 100px;
+    background:#f4f8f7;
+    color:#17251f;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+/* TOP BAR / PHONE STATUS BAR SPACE */
+.top-space{
+    height:24px;
+    background:#082d37;
+}
+
+.topbar{
+    background:linear-gradient(135deg,#082d37,#075b4b);
+    color:white;
+    padding:16px 18px 20px;
+    border-radius:0 0 26px 26px;
+    box-shadow:0 6px 20px #0002;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:13px;
+}
+
+.logo{
+    width:48px;
+    height:48px;
+    border-radius:16px;
+    background:#ffffff1c;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:25px;
+}
+
+.brand-title{
+    font-size:20px;
+    font-weight:800;
+}
+
+.brand-sub{
+    font-size:12px;
+    opacity:.72;
+    margin-top:3px;
+}
+
+.connection{
+    margin-left:auto;
+    font-size:10px;
+    background:#ffffff18;
+    padding:7px 9px;
+    border-radius:20px;
+}
+
+/* CONTENT */
+.container{
+    padding:18px;
+    max-width:700px;
+    margin:auto;
+}
+
+.security-card{
+    background:linear-gradient(135deg,#ffffff,#f7fffb);
+    border-radius:24px;
+    padding:20px;
+    box-shadow:0 7px 25px #17483c12;
+    margin-bottom:15px;
+}
+
+.security-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.label{
+    color:#71817b;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.5px;
+}
+
+.score{
+    font-size:38px;
+    font-weight:900;
+    color:#129565;
+    margin-top:4px;
+}
+
+.status{
+    background:#e7f8ef;
+    color:#118957;
+    padding:8px 12px;
+    border-radius:30px;
+    font-size:11px;
+    font-weight:800;
+}
+
+.status-dot{
+    display:inline-block;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#18a568;
+    margin-right:5px;
+}
+
+.last{
+    color:#7b8984;
+    font-size:12px;
+    margin-top:9px;
+}
+
+/* STAT CARDS */
+.stats{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-bottom:18px;
+}
+
+.stat{
+    background:white;
+    border-radius:20px;
+    padding:17px;
+    box-shadow:0 6px 20px #17483c10;
+}
+
+.stat-icon{
+    width:42px;
+    height:42px;
+    border-radius:14px;
+    background:#e8f7f1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:21px;
+    margin-bottom:11px;
+}
+
+.stat-title{
+    font-size:12px;
+    color:#71817b;
+}
+
+.stat-value{
+    font-size:19px;
+    font-weight:800;
+    margin-top:4px;
+}
+
+/* SECTION */
+.section-title{
+    font-size:18px;
+    font-weight:800;
+    margin:20px 2px 11px;
+}
+
+/* ACTIONS */
+.actions{
+    background:white;
+    padding:15px;
+    border-radius:21px;
+    box-shadow:0 6px 20px #17483c10;
+}
+
+.action-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+}
+
+.action{
+    border:0;
+    border-radius:15px;
+    padding:14px 8px;
+    background:#edf8f4;
+    color:#116e52;
+    font-size:12px;
+    font-weight:700;
+}
+
+.action:active{
+    transform:scale(.97);
+}
+
+.refresh{
+    width:100%;
+    border:0;
+    border-radius:15px;
+    padding:14px;
+    margin-top:10px;
+    background:#0b303a;
+    color:white;
+    font-size:14px;
+    font-weight:800;
+}
+
+/* REPORT */
+.list{
+    background:white;
+    border-radius:21px;
+    overflow:hidden;
+    box-shadow:0 6px 20px #17483c10;
+}
+
+.empty{
+    padding:23px;
+    text-align:center;
+    color:#7c8985;
+    font-size:13px;
+}
+
+.report-item{
+    padding:15px;
+    border-bottom:1px solid #edf1ef;
+}
+
+.report-item:last-child{
+    border-bottom:0;
+}
+
+.report-row{
+    display:flex;
+    gap:12px;
+    align-items:center;
+}
+
+.report-icon{
+    width:40px;
+    height:40px;
+    border-radius:13px;
+    background:#fff1e5;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:19px;
+}
+
+.report-name{
+    font-size:14px;
+    font-weight:800;
+}
+
+.report-package{
+    color:#84918d;
+    font-size:11px;
+    margin-top:3px;
+    word-break:break-all;
+}
+
+.badge{
+    margin-left:auto;
+    background:#fff0d9;
+    color:#a96508;
+    border-radius:20px;
+    padding:6px 8px;
+    font-size:9px;
+    font-weight:800;
+}
+
+.uninstall{
+    border:1px solid #efcaca;
+    background:#fff;
+    color:#d34242;
+    border-radius:10px;
+    padding:7px 10px;
+    font-size:11px;
+    margin-top:9px;
+}
+
+/* BACKEND */
+.backend{
+    background:white;
+    border-radius:21px;
+    padding:17px;
+    box-shadow:0 6px 20px #17483c10;
+}
+
+.input{
+    width:100%;
+    padding:13px;
+    border:1px solid #dce5e1;
+    border-radius:12px;
+    outline:none;
+    font-size:12px;
+    margin-top:9px;
+}
+
+.save{
+    border:0;
+    background:#0b303a;
+    color:white;
+    padding:11px 16px;
+    border-radius:11px;
+    margin-top:9px;
+    font-weight:700;
+}
+
+.help{
+    font-size:10px;
+    color:#89958f;
+    margin-top:8px;
+}
+
+/* RAW REPORT */
+.raw{
+    background:#10252b;
+    color:#d5eee5;
+    padding:14px;
+    border-radius:15px;
+    font-family:monospace;
+    font-size:10px;
+    white-space:pre-wrap;
+    max-height:250px;
+    overflow:auto;
+}
+
+/* PAGES */
+.page{
+    display:none;
+}
+
+.page.active{
+    display:block;
+}
+
+/* BOTTOM NAV */
+.bottom-nav{
+    position:fixed;
+    left:12px;
+    right:12px;
+    bottom:12px;
+    height:70px;
+    background:#092c35;
+    border-radius:24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-around;
+    box-shadow:0 8px 28px #0005;
+    z-index:100;
+}
+
+.nav-btn{
+    border:0;
+    background:transparent;
+    color:#8da2a5;
+    font-size:10px;
+    font-weight:700;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    padding:8px 15px;
+}
+
+.nav-btn.active{
+    color:white;
+}
+
+.nav-icon{
+    font-size:21px;
+}
+
+/* SCAN */
+.scan-card{
+    background:white;
+    border-radius:24px;
+    padding:25px;
+    text-align:center;
+    box-shadow:0 6px 22px #17483c12;
+}
+
+.scan-circle{
+    width:135px;
+    height:135px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#0b7457,#18a86f);
+    color:white;
+    margin:20px auto;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    box-shadow:0 10px 30px #0b745733;
+}
+
+.scan-number{
+    font-size:35px;
+    font-weight:900;
+}
+
+.scan-label{
+    font-size:10px;
+    margin-top:2px;
+}
+
+.scan-button{
+    border:0;
+    background:#0b303a;
+    color:white;
+    border-radius:14px;
+    padding:14px;
+    width:100%;
+    font-weight:800;
+}
+
+/* RESPONSIVE */
+@media(min-width:600px){
+    .action-grid{
+        grid-template-columns:repeat(4,1fr);
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-space"></div>
+
+<header class="topbar">
+    <div class="brand">
+        <div class="logo">🛡️</div>
+
+        <div>
+            <div class="brand-title">Android Security Monitor</div>
+            <div class="brand-sub">Device protection & security dashboard</div>
+        </div>
+
+        <div id="connection" class="connection">
+            Offline
+        </div>
+    </div>
+</header>
+
+<main class="container">
+
+<!-- HOME -->
+<section id="home" class="page active">
+
+    <div class="security-card">
+
+        <div class="security-head">
+
+            <div>
+                <div class="label">DEVICE SECURITY</div>
+                <div id="score" class="score">100%</div>
+            </div>
+
+            <div id="status" class="status">
+                <span class="status-dot"></span>
+                PROTECTED
+            </div>
+
+        </div>
+
+        <div id="lastScan" class="last">
+            Waiting for security report...
+        </div>
+
+    </div>
+
+    <div class="stats">
+
+        <div class="stat">
+
+            <div class="stat-icon">🔐</div>
+
+            <div class="stat-title">
+                Powerful access
+            </div>
+
+            <div id="powerfulCount" class="stat-value">
+                0
+            </div>
+
+        </div>
+
+        <div class="stat">
+
+            <div class="stat-icon">📱</div>
+
+            <div class="stat-title">
+                Device status
+            </div>
+
+            <div id="deviceStatus" class="stat-value">
+                Secure
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="section-title">
+        Security actions
+    </div>
+
+    <div class="actions">
+
+        <div class="action-grid">
+
+            <button class="action"
+                    onclick="android('accessibility')">
+                ♿<br>Accessibility
+            </button>
+
+            <button class="action"
+                    onclick="android('admin')">
+                🔑<br>Device admins
+            </button>
+
+            <button class="action"
+                    onclick="android('overlay')">
+                ◉<br>Overlay access
+            </button>
+
+            <button class="action"
+                    onclick="android('playprotect')">
+                🛡️<br>Play Protect
+            </button>
+
+        </div>
+
+        <button class="refresh"
+                onclick="runScan()">
+            🔄 Refresh security scan
+        </button>
+
+    </div>
+
+    <div class="section-title">
+        Reported apps
+    </div>
+
+    <div id="apps" class="list">
+        <div class="empty">
+            No security report yet.
+        </div>
+    </div>
+
+</section>
+
+
+<!-- SCAN -->
+<section id="scan" class="page">
+
+    <div class="scan-card">
+
+        <div class="label">
+            SECURITY SCAN
+        </div>
+
+        <div class="scan-circle">
+
+            <div id="scanNumber" class="scan-number">
+                100
+            </div>
+
+            <div class="scan-label">
+                SECURITY SCORE
+            </div>
+
+        </div>
+
+        <p id="scanText">
+            Scan your Android device for potential security risks.
+        </p>
+
+        <button class="scan-button"
+                onclick="runScan()">
+            🔍 Scan device now
+        </button>
+
+    </div>
+
+    <div class="section-title">
+        Quick checks
+    </div>
+
+    <div class="list">
+
+        <div class="report-item">
+            🛡️ Play Protect
+            <span style="float:right">Available</span>
+        </div>
+
+        <div class="report-item">
+            🔐 Powerful access
+            <span style="float:right">Checked</span>
+        </div>
+
+        <div class="report-item">
+            📡 VPN status
+            <span id="scanVpn" style="float:right">Checking</span>
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- REPORTS -->
+<section id="reports" class="page">
+
+    <div class="section-title">
+        Security reports
+    </div>
+
+    <div id="reportPage" class="list">
+        <div class="empty">
+            No report available.
+        </div>
+    </div>
+
+    <div class="section-title">
+        Last report
+    </div>
+
+    <pre id="raw" class="raw">No Android report yet.</pre>
+
+</section>
+
+
+<!-- SETTINGS -->
+<section id="settings" class="page">
+
+    <div class="section-title">
+        Device
+    </div>
+
+    <div class="list">
+
+        <div class="report-item">
+            <b>📱 Device ID</b>
+            <div id="deviceId"
+                 class="report-package">
+                Registering...
+            </div>
+        </div>
+
+        <div class="report-item">
+            <b>🤖 Android Security Monitor</b>
+            <div class="report-package">
+                Device security companion
+            </div>
+        </div>
+
+    </div>
+
+    <div class="section-title">
+        Backend sync
+    </div>
+
+    <div class="backend">
+
+        <div class="label">
+            SECURITY REPORT ENDPOINT
+        </div>
+
+        <input
+            id="api"
+            class="input"
+            placeholder="https://your-domain/api/security/report">
+
+        <button class="save"
+                onclick="saveApi()">
+            Save endpoint
+        </button>
+
+        <div class="help">
+            Use HTTPS and authentication in production.
+        </div>
+
+    </div>
+
+    <div class="section-title">
+        More security settings
+    </div>
+
+    <div class="actions">
+
+        <button class="action"
+                style="width:100%;margin-bottom:10px"
+                onclick="android('updates')">
+            ⚙️ Security updates
+        </button>
+
+        <button class="action"
+                style="width:100%"
+                onclick="android('playprotect')">
+            🛡️ Open Play Protect
+        </button>
+
+    </div>
+
+</section>
+
+</main>
+
+
+<!-- BOTTOM NAVIGATION -->
+
+<nav class="bottom-nav">
+
+    <button class="nav-btn active"
+            onclick="page('home',this)">
+        <span class="nav-icon">⌂</span>
+        Home
+    </button>
+
+    <button class="nav-btn"
+            onclick="page('scan',this)">
+        <span class="nav-icon">⌕</span>
+        Scan
+    </button>
+
+    <button class="nav-btn"
+            onclick="page('reports',this)">
+        <span class="nav-icon">▤</span>
+        Reports
+    </button>
+
+    <button class="nav-btn"
+            onclick="page('settings',this)">
+        <span class="nav-icon">⚙</span>
+        Settings
+    </button>
+
+</nav>
+
+
+<script>
+
+let report=null;
+let selected=null;
+
+const $=id=>document.getElementById(id);
+
+
+function esc(s){
+
+    return String(s??'').replace(
+        /[&<>"']/g,
+        m=>({
+            '&':'&amp;',
+            '<':'&lt;',
+            '>':'&gt;',
+            '"':'&quot;',
+            "'":'&#39;'
+        }[m])
+    );
+
+}
+
+
+function page(id,button){
+
+    document
+        .querySelectorAll('.page')
+        .forEach(x=>x.classList.remove('active'));
+
+    $(id).classList.add('active');
+
+    document
+        .querySelectorAll('.nav-btn')
+        .forEach(x=>x.classList.remove('active'));
+
+    button.classList.add('active');
+
+    window.scrollTo(0,0);
+
+}
+
+
+function android(action){
+
+    if(window.AndroidSecurity){
+
+        window.AndroidSecurity.open(action);
+
+    }else{
+
+        alert('This action requires the Android companion.');
+
+    }
+
+}
+
+
+function runScan(){
+
+    try{
+
+        if(!window.AndroidSecurity){
+
+            alert('Open this page inside the Android companion.');
+
+            return;
+
+        }
+
+        report=JSON.parse(
+            window.AndroidSecurity.scan()
+        );
+
+        render(report);
+
+        $('scanText').textContent=
+            'Security scan completed successfully.';
+
+    }catch(e){
+
+        $('scanText').textContent=
+            'Unable to complete security scan.';
+
+    }
+
+}
+
+
+function render(r){
+
+    if(!r)return;
+
+    const remote=r.remoteAccess||[];
+    const powerful=r.powerfulAccess||[];
+
+    let risk=
+        powerful.length+
+        remote.length+
+        (r.vpn?1:0);
+
+    let score=
+        Math.max(
+            0,
+            100-risk*15
+        );
+
+    $('score').textContent=
+        score+'%';
+
+    $('scanNumber').textContent=
+        score;
+
+    $('powerfulCount').textContent=
+        powerful.length;
+
+    $('deviceStatus').textContent=
+        r.vpn?'VPN active':'Secure';
+
+    $('scanVpn').textContent=
+        r.vpn?'Active':'Not active';
+
+    $('lastScan').textContent=
+        'Last checked: '+
+        new Date(
+            r.scannedAt||Date.now()
+        ).toLocaleString();
+
+
+    if(score>=80){
+
+        $('status').innerHTML=
+            '<span class="status-dot"></span>PROTECTED';
+
+    }else{
+
+        $('status').style.background='#fff0f0';
+        $('status').style.color='#d23c3c';
+
+        $('status').innerHTML=
+            '<span class="status-dot" style="background:#d23c3c"></span>REVIEW NEEDED';
+
+    }
+
+
+    $('connection').textContent=
+        '● Connected';
+
+
+    let html='';
+
+
+    remote.forEach(x=>{
+
+        html+=
+        '<div class="report-item">'+
+            '<div class="report-row">'+
+                '<div class="report-icon">⚠️</div>'+
+                '<div>'+
+                    '<div class="report-name">'+
+                        esc(x.label)+
+                    '</div>'+
+                    '<div class="report-package">'+
+                        esc(x.package)+
+                    '</div>'+
+                '</div>'+
+                '<div class="badge">REMOTE</div>'+
+            '</div>'+
+        '</div>';
+
+    });
+
+
+    powerful.forEach(x=>{
+
+        html+=
+        '<div class="report-item">'+
+            '<div class="report-row">'+
+                '<div class="report-icon">🔐</div>'+
+                '<div>'+
+                    '<div class="report-name">'+
+                        'Powerful access'+
+                    '</div>'+
+                    '<div class="report-package">'+
+                        esc(x.type)+
+                        ' · '+
+                        esc(x.package)+
+                    '</div>'+
+                '</div>'+
+            '</div>'+
+        '</div>';
+
+    });
+
+
+    if(!html){
+
+        html=
+        '<div class="empty">'+
+        '✓ No suspicious remote-control apps or powerful access detected.'+
+        '</div>';
+
+    }
+
+
+    $('apps').innerHTML=html;
+
+    $('reportPage').innerHTML=html;
+
+    $('raw').textContent=
+        JSON.stringify(r,null,2);
+
+}
+
+
+function selectForUninstall(pkg){
+
+    selected=pkg;
+
+    alert(
+        'Selected '+pkg+
+        '. Android will show the normal uninstall confirmation.'
+    );
+
+}
+
+
+function uninstallSelected(){
+
+    if(!selected){
+
+        alert('Select an app first.');
+
+        return;
+
+    }
+
+    if(window.AndroidSecurity){
+
+        window.AndroidSecurity.uninstall(
+            selected
+        );
+
+    }else{
+
+        alert(
+            'Open this page inside the Android companion.'
+        );
+
+    }
+
+}
+
+
+function saveApi(){
+
+    localStorage.setItem(
+        'securityApi',
+        $('api').value.trim()
+    );
+
+    alert(
+        'API URL saved locally.'
+    );
+
+}
+
+
+window.setSecurityReport=function(j){
+
+    report=j;
+
+    localStorage.setItem(
+        'phoneSecurityReport',
+        JSON.stringify(j)
+    );
+
+    render(j);
+
+};
+
+
+window.setDeviceId=function(id){
+
+    $('deviceId').textContent=
+        'Device ID: '+id;
+
+};
+
+
+$('api').value=
+    localStorage.getItem('securityApi')||'';
+
+
+try{
+
+    const saved=
+        localStorage.getItem(
+            'phoneSecurityReport'
+        );
+
+    if(saved){
+
+        report=JSON.parse(saved);
+
+        render(report);
+
+    }
+
+}catch(e){}
+
+</script>
+
+</body>
+</html>
