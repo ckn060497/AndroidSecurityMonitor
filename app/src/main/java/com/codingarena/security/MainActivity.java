@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle b) {
         super.onCreate(b);
+        api=new ApiClient("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com");
         getWindow().setStatusBarColor(android.graphics.Color.rgb(24,28,27));
         getWindow().setNavigationBarColor(android.graphics.Color.rgb(24,28,27));
         web = new WebView(this);
@@ -40,7 +41,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new SecurityBridge(), "AndroidSecurity");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
-        api=new ApiClient("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com");
+       // api=new ApiClient("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com");
         registerDevice();
     }
  private void registerDevice() {
