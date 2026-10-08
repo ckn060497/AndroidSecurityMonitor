@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
     private void registerDevice() {
     new Thread(() -> {
         try {
-            URL url = new URL("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/health/api/devices/register");
+            URL url = new URL("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/devices/register");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
