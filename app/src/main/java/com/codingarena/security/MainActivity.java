@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new SecurityBridge(), "AndroidSecurity");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
+        registerDevice();
     }
     private void registerDevice() {
     new Thread(() -> {
