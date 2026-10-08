@@ -39,24 +39,56 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
         registerDevice();
     }
-    private void registerDevice() {
+ private void registerDevice() {
     new Thread(() -> {
         try {
-            URL url = new URL("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/devices/register");
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            String deviceKey = Settings.Secure.getString(
+                    getContentResolver(),
+                    Settings.Secure.ANDROID_ID
+            );
 
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-
-            String json = "{}";
-
-            try (OutputStream os = conn.getOutputStream()) {
-                os.write(json.getBytes("UTF-8"));
+            if (deviceKey == null || deviceKey.isEmpty()) {
+                deviceKey = Build.MANUFACTURER + "_" + Build.MODEL;
             }
 
+            String deviceName = Build.MANUFACTURER + " " + Build.MODEL;
+            String androidVersion = Build.VERSION.RELEASE;
+            String manufacturer = Build.MANUFACTURER;
+            String model = Build.MODEL;
+            String appVersion = "1.0";
+
+            JSONObject data = new JSONObject();
+            data.put("deviceKey", deviceKey);
+            data.put("deviceName", deviceName);
+            data.put("androidVersion", androidVersion);
+            data.put("manufacturer", manufacturer);
+            data.put("model", model);
+            data.put("appVersion", appVersion);
+
+            URL url = new URL(
+                    "http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/devices/register"
+            );
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(data.toString().getBytes("UTF-8"));
+            }
+
+            int code = conn.getResponseCode();
+
+            InputStream stream = code >= 200 && code < 300
+                    ? conn.getInputStream()
+                    : conn.getErrorStream();
+
             BufferedReader br = new BufferedReader(
-                    new InputStreamReader(conn.getInputStream())
+                    new InputStreamReader(stream)
             );
 
             StringBuilder response = new StringBuilder();
@@ -71,13 +103,15 @@ public class MainActivity extends Activity {
             String result = response.toString();
 
             runOnUiThread(() -> {
-                android.util.Log.d("DEVICE_REGISTER", "Response: " + result);
+                android.util.Log.d(
+                        "DEVICE_REGISTER",
+                        "HTTP " + code + ": " + result
+                );
 
                 try {
-                    org.json.JSONObject obj =
-                            new org.json.JSONObject(result);
+                    JSONObject obj = new JSONObject(result);
 
-                    deviceId = obj.getLong("deviceId");
+                    deviceId = obj.getLong("id");
 
                     android.util.Log.d(
                             "DEVICE_REGISTER",
@@ -97,11 +131,12 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             android.util.Log.e(
                     "DEVICE_REGISTER",
-                    "Registration failed: " + e.getMessage()
+                    "Registration failed: " + e.getMessage(),
+                    e
             );
         }
     }).start();
-    }
+}
 
     class SecurityBridge {
         @JavascriptInterface public void open(String action) { runOnUiThread(() -> openSettings(action)); }
