@@ -110,6 +110,11 @@ public class MainActivity extends Activity {
         JSONObject obj = new JSONObject(result);
         deviceId = obj.getLong("id");
 
+        web.evaluateJavascript(
+    "window.setDeviceId("+deviceId+");",
+    null
+);
+        
         Toast.makeText(
                 MainActivity.this,
                 "Registration successful\nDevice ID: " + deviceId,
