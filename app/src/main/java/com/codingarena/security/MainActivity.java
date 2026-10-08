@@ -242,7 +242,13 @@ public class MainActivity extends Activity {
             Intent i = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkg));
             startActivity(i);
         }
-        @JavascriptInterface public String scan() { return buildReport().toString(); }
+         
+            @JavascriptInterface public String scan() {
+    JSONObject report = buildReport();
+    sendScanToServer(report);
+    return report.toString();
+}
+        
     }
 
     void openSettings(String action) {
