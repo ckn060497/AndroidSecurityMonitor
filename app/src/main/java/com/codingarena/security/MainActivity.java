@@ -21,6 +21,7 @@ import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     WebView web;
+    ApiClient api;
     long deviceId=-1;
     Set<String> knownRemote = new HashSet<>(Arrays.asList(
         "com.anydesk.anydeskandroid", "com.teamviewer.quicksupport.market",
@@ -39,6 +40,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new SecurityBridge(), "AndroidSecurity");
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
+        api=new ApiClient("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com");
         registerDevice();
     }
  private void registerDevice() {
