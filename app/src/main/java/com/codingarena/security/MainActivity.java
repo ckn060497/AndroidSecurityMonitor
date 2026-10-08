@@ -104,7 +104,27 @@ public class MainActivity extends Activity {
 
             String result = response.toString();
 
+
             runOnUiThread(() -> {
+    try {
+        JSONObject obj = new JSONObject(result);
+        deviceId = obj.getLong("id");
+
+        Toast.makeText(
+                MainActivity.this,
+                "Registration successful\nDevice ID: " + deviceId,
+                Toast.LENGTH_LONG
+        ).show();
+
+    } catch (Exception e) {
+        Toast.makeText(
+                MainActivity.this,
+                "Registration response error\nHTTP: " + code,
+                Toast.LENGTH_LONG
+        ).show();
+    }
+});
+           /* runOnUiThread(() -> {
                 android.util.Log.d(
                         "DEVICE_REGISTER",
                         "HTTP " + code + ": " + result
@@ -127,6 +147,7 @@ public class MainActivity extends Activity {
                     );
                 }
             });
+     */
 
             conn.disconnect();
 
