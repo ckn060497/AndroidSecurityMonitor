@@ -14,9 +14,12 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.view.accessibility.AccessibilityManager;
 import org.json.*;
 import java.util.*;
+import java.io.*;
+import java.net.*;
 
 public class MainActivity extends Activity {
     WebView web;
+    long deviceId=-1;
     Set<String> knownRemote = new HashSet<>(Arrays.asList(
         "com.anydesk.anydeskandroid", "com.teamviewer.quicksupport.market",
         "com.teamviewer.host.market", "com.google.chromeremotedesktop",
