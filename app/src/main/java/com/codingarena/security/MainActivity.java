@@ -38,6 +38,69 @@ public class MainActivity extends Activity {
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
     }
+    private void registerDevice() {
+    new Thread(() -> {
+        try {
+            URL url = new URL("http://androidsecuritymonitor.us-east-1.elasticbeanstalk.com/api/health/api/devices/register");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+
+            String json = "{}";
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(json.getBytes("UTF-8"));
+            }
+
+            BufferedReader br = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream())
+            );
+
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = br.readLine()) != null) {
+                response.append(line);
+            }
+
+            br.close();
+
+            String result = response.toString();
+
+            runOnUiThread(() -> {
+                android.util.Log.d("DEVICE_REGISTER", "Response: " + result);
+
+                try {
+                    org.json.JSONObject obj =
+                            new org.json.JSONObject(result);
+
+                    deviceId = obj.getLong("deviceId");
+
+                    android.util.Log.d(
+                            "DEVICE_REGISTER",
+                            "Registered deviceId = " + deviceId
+                    );
+
+                } catch (Exception e) {
+                    android.util.Log.e(
+                            "DEVICE_REGISTER",
+                            "Invalid response: " + e.getMessage()
+                    );
+                }
+            });
+
+            conn.disconnect();
+
+        } catch (Exception e) {
+            android.util.Log.e(
+                    "DEVICE_REGISTER",
+                    "Registration failed: " + e.getMessage()
+            );
+        }
+    }).start();
+    }
 
     class SecurityBridge {
         @JavascriptInterface public void open(String action) { runOnUiThread(() -> openSettings(action)); }
