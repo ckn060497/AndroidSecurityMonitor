@@ -1,3 +1,4 @@
+
 package com.securitymonitor.api.model;
 
 import jakarta.persistence.*;
@@ -18,7 +19,7 @@ public class SecurityScan {
     private int riskScore;
     private String riskLevel;
 
-    @Column(length = 20000)
+    @Column(columnDefinition = "TEXT")
     private String reportJson;
 
     public SecurityScan() {}
